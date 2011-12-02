@@ -1,0 +1,98 @@
+#!/usr/bin/python
+# -*- coding: utf-8
+
+import ConfigParser
+import argparse
+import getpass
+import os
+import sys
+
+from jinja2 import Template
+
+
+class color:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    EC = '\033[0m'
+
+
+st = Template('''#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+try:
+    from setuptools import setup, find_packages
+except ImportError:
+    from distutils.core import setup, find_packages
+
+setup(
+    name = "{{name}}",
+    version = "0.1",
+    packages = find_packages(),
+    install_requires = [
+    ],
+    package_data = {
+    },
+    author="{{author}}",
+    author_email="{{email}}",
+    description="{{description}}",
+    long_description=open('README.rst').read(),
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+    ],
+)
+''')
+
+
+def create_app(name, description, author, email):
+    print(color.OKGREEN + 'Creating module' + color.EC)
+    try:
+        os.makedirs('%s/%s' % (name, name))
+        with open('%s/%s/__init__.py' % (name, name), 'w') as f:
+            f.write('')
+        with open('%s/setup.py' % name, 'w') as f:
+            f.write(st.render(name=name, description=description,
+                email=email, author=author))
+        with open('%s/README.rst' % name, 'w') as f:
+            f.write('')
+    except Exception as e:
+        print(color.FAIL + str(e) + color.EC)
+        sys.exit(1)
+    print(color.OKGREEN + 'Finished' + color.EC)
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(
+        description='Creates a python application bundle.')
+    parser.add_argument('name', metavar='name', type=str,
+        help='Name')
+    parser.add_argument('--description', metavar='description', type=str,
+        help='Description', default='', required=False)
+    parser.add_argument('--author', metavar='author', type=str,
+        help='Author', default=None, required=False)
+    parser.add_argument('--email', metavar='email', type=str,
+        help='Email', default=None, required=False)
+
+    args = parser.parse_args()
+    author, email = args.author, args.email
+
+    if None in [author, email]:
+        config_path = os.path.expanduser('~/.pjutils')
+        if not os.path.isfile(config_path):
+            import socket
+            author = author or getpass.getuser()
+            email = email or '%s@%s' % (author, socket.gethostname())
+        else:
+            config = ConfigParser.RawConfigParser(allow_no_value=True)
+            config.readfp(open(os.path.expanduser('~/.pjutils')))
+            author = config.get('defaults', 'author')
+            email = config.get('defaults', 'email')
+
+    create_app(args.name, args.description, author, email)
