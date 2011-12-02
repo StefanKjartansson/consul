@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: utf-8 
+# -*- coding: utf-8
 
 import ConfigParser
 import argparse
@@ -80,7 +80,22 @@ setup(
 ''')
 
 
-def create_app(name, description, author, email):
+git_ignore = '''*.py[oc]
+*.swp
+*.log
+*.db
+*.tar.gz
+*.egg-info/
+build/
+dist/
+env/
+.DS_Store
+.noseids
+.coverage
+'''
+
+def create_app(name, description, author, email, init_git=False):
+
 
     if os.path.exists(name):
         print(color.FAIL + ('Project path %s exists' % name) + color.EC)
@@ -88,8 +103,11 @@ def create_app(name, description, author, email):
 
     print(color.OKBLUE + ('Creating project path for %s' % name) + color.EC)
     os.makedirs('%s' % (name))
+
+    org_path = os.path.realpath(name)
+
     with open('%s/setup.py' % name, 'w') as f:
-        f.write(st.render(name=name, description=description, 
+        f.write(st.render(name=name, description=description,
             email=email, author=author))
     with open('%s/README.rst' % name, 'w') as f:
         f.write('')
@@ -97,17 +115,17 @@ def create_app(name, description, author, email):
     venv = os.path.join(os.path.realpath(name), 'env')
     virtualenv.create_environment(venv, site_packages=False)
 
-    print(color.OKGREEN + ('CHDIR %s' % name) + color.EC)    
+    print(color.OKGREEN + ('CHDIR %s' % name) + color.EC)
     os.chdir(name)
     print(color.OKGREEN + ('Installing pip and requirements') + color.EC)
 
     for x in [
-            'pip install -E %s %s' % (venv, 'django'), 
+            'pip install -E %s %s' % (venv, 'django'),
             '%s/bin/django-admin.py startproject test_project' % (venv)]:
-        
+
         print(color.WARNING + ('Executing "%s"' % x) + color.EC)
 
-        c = subprocess.Popen(shlex.split(x), 
+        c = subprocess.Popen(shlex.split(x),
             stdin=subprocess.PIPE,
             stdout=sys.stdout)
         o, e = c.communicate()
@@ -120,24 +138,40 @@ def create_app(name, description, author, email):
     os.chdir('test_project')
 
     for x in [
-            '%s/bin/python manage.py startapp %s' % (venv, name), 
+            '%s/bin/python manage.py startapp %s' % (venv, name),
             'mv %s ../' % name]:
 
         print(color.WARNING + ('Executing "%s"' % x) + color.EC)
 
-        c = subprocess.Popen(shlex.split(x), 
+        c = subprocess.Popen(shlex.split(x),
             stdin=subprocess.PIPE,
-            stdout=sys.stdout)    
+            stdout=sys.stdout)
         o, e = c.communicate()
         if e:
             print(color.FAIL + e + color.EC)
             sys.exit(1)
-   
+
+    if init_git:
+
+        os.chdir(org_path)
+        print(color.WARNING + ('Initializing git') + color.EC)
+
+        c = subprocess.Popen(shlex.split('git init'),
+            stdin=subprocess.PIPE,
+            stdout=sys.stdout)
+        o, e = c.communicate()
+        if e:
+            print(color.FAIL + e + color.EC)
+            sys.exit(1)
+
+        with open('.gitignore' , 'w') as f:
+            f.write(git_ignore)
+
     print(color.OKGREEN + ('Finished') + color.EC)
 
 
 if __name__ == '__main__':
-    
+
     parser = argparse.ArgumentParser(
         description='Creates a python application bundle.')
     parser.add_argument('name', metavar='name', type=str,
@@ -148,10 +182,12 @@ if __name__ == '__main__':
         help='Author', default=None, required=False)
     parser.add_argument('--email', metavar='email', type=str,
         help='Email', default=None, required=False)
+    parser.add_argument('--git', help='Initialize a git repo',
+        default=False, action='store_true', required=False)
 
     args = parser.parse_args()
     author, email = args.author, args.email
-    
+
     if None in [author, email]:
         config_path = os.path.expanduser('~/.pjutils')
         if not os.path.isfile(config_path):
@@ -164,4 +200,5 @@ if __name__ == '__main__':
             author = config.get('defaults', 'author')
             email = config.get('defaults', 'email')
 
-    create_app(args.name, args.description, author, email)
+    create_app(args.name, args.description, author, email,
+        init_git=args.git)
