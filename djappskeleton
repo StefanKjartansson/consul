@@ -22,6 +22,37 @@ class color:
     EC = '\033[0m'
 
 
+test_settings = Template('''
+from settings import *
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+        'NAME': 'test.db',                      # Or path to database file if using sqlite3.
+        'USER': '',                      # Not used with sqlite3.
+        'PASSWORD': '',                  # Not used with sqlite3.
+        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+    }
+}
+
+INSTALLED_APPS += ('{{name}}',)
+
+{% if use_nose %}
+INSTALLED_APPS += ('django_nose',)
+
+TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+NOSE_ARGS = ['{{name}}',
+    '--failed',
+    '--stop',
+    '--with-coverage',
+    '--cover-erase',
+    '--cover-package={{name}}',
+    '--cover-tests',
+]
+{% endif %}
+''')
+
 st = Template('''#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -51,7 +82,7 @@ class RunTests(Command):
         sys.path.append(testproj_dir)
         from django.core.management import execute_manager
         os.environ["DJANGO_SETTINGS_MODULE"] = os.environ.get(
-                "DJANGO_SETTINGS_MODULE", "settings")
+                "DJANGO_SETTINGS_MODULE", "test_settings")
         settings_file = os.environ["DJANGO_SETTINGS_MODULE"]
         settings_mod = __import__(settings_file, {}, {}, [''])
         execute_manager(settings_mod, argv=[
@@ -96,6 +127,7 @@ env/
 .DS_Store
 .noseids
 .coverage
+test.db
 '''
 
 def create_app(name, description, author, email, reqs=None, init_git=False):
@@ -180,6 +212,10 @@ def create_app(name, description, author, email, reqs=None, init_git=False):
         f.write(st.render(name=name, description=description,
             email=email, author=author, pkgs=[i.strip() 
                 for i in o.split('\n') if i.strip()]))
+
+    with open('test_project/test_settings.py', 'w') as f:
+         f.write(test_settings.render(name=name, 
+            use_nose=('django-nose' in reqs)))
 
     print(color.OKGREEN + ('Finished') + color.EC)
 
