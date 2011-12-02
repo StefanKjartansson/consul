@@ -1,0 +1,167 @@
+#!/usr/bin/python
+# -*- coding: utf-8 
+
+import ConfigParser
+import argparse
+import getpass
+import os
+import shlex
+import subprocess
+import sys
+
+from jinja2 import Template
+import virtualenv
+
+
+class color:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    EC = '\033[0m'
+
+
+st = Template('''#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+try:
+    from setuptools import setup, find_packages, Command
+except ImportError:
+    from distutils.core import setup, find_packages, Command
+
+class RunTests(Command):
+    description = "Run the django test suite from the test_project dir."
+
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        this_dir = os.getcwd()
+        testproj_dir = os.path.join(this_dir, "test_project")
+        os.chdir(testproj_dir)
+        sys.path.append(testproj_dir)
+        from django.core.management import execute_manager
+        os.environ["DJANGO_SETTINGS_MODULE"] = os.environ.get(
+                "DJANGO_SETTINGS_MODULE", "settings")
+        settings_file = os.environ["DJANGO_SETTINGS_MODULE"]
+        settings_mod = __import__(settings_file, {}, {}, [''])
+        execute_manager(settings_mod, argv=[
+            __file__, "test"])
+        os.chdir(this_dir)
+
+setup(
+    name = "{{name}}",
+    version = "0.1",
+    packages = find_packages(exclude=['test_project']),
+    install_requires = [
+        'django>=1.3',
+    ],
+    package_data = {
+    },
+    cmdclass = {"test": RunTests},
+    author="{{author}}",
+    author_email="{{email}}",
+    description="{{description}}",
+    long_description=open('README.rst').read(),
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+    ],
+)
+''')
+
+
+def create_app(name, description, author, email):
+
+    if os.path.exists(name):
+        print(color.FAIL + ('Project path %s exists' % name) + color.EC)
+        sys.exit(1)
+
+    print(color.OKBLUE + ('Creating project path for %s' % name) + color.EC)
+    os.makedirs('%s' % (name))
+    with open('%s/setup.py' % name, 'w') as f:
+        f.write(st.render(name=name, description=description, 
+            email=email, author=author))
+    with open('%s/README.rst' % name, 'w') as f:
+        f.write('')
+
+    venv = os.path.join(os.path.realpath(name), 'env')
+    virtualenv.create_environment(venv, site_packages=False)
+
+    print(color.OKGREEN + ('CHDIR %s' % name) + color.EC)    
+    os.chdir(name)
+    print(color.OKGREEN + ('Installing pip and requirements') + color.EC)
+
+    for x in [
+            'pip install -E %s %s' % (venv, 'django'), 
+            '%s/bin/django-admin.py startproject test_project' % (venv)]:
+        
+        print(color.WARNING + ('Executing "%s"' % x) + color.EC)
+
+        c = subprocess.Popen(shlex.split(x), 
+            stdin=subprocess.PIPE,
+            stdout=sys.stdout)
+        o, e = c.communicate()
+        if e:
+            print(color.FAIL + e + color.EC)
+            sys.exit(1)
+
+    print(color.OKGREEN + ('Creating test_project and app') + color.EC)
+
+    os.chdir('test_project')
+
+    for x in [
+            '%s/bin/python manage.py startapp %s' % (venv, name), 
+            'mv %s ../' % name]:
+
+        print(color.WARNING + ('Executing "%s"' % x) + color.EC)
+
+        c = subprocess.Popen(shlex.split(x), 
+            stdin=subprocess.PIPE,
+            stdout=sys.stdout)    
+        o, e = c.communicate()
+        if e:
+            print(color.FAIL + e + color.EC)
+            sys.exit(1)
+   
+    print(color.OKGREEN + ('Finished') + color.EC)
+
+
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser(
+        description='Creates a python application bundle.')
+    parser.add_argument('name', metavar='name', type=str,
+        help='Name')
+    parser.add_argument('--description', metavar='description', type=str,
+        help='Description', default='', required=False)
+    parser.add_argument('--author', metavar='author', type=str,
+        help='Author', default=None, required=False)
+    parser.add_argument('--email', metavar='email', type=str,
+        help='Email', default=None, required=False)
+
+    args = parser.parse_args()
+    author, email = args.author, args.email
+    
+    if None in [author, email]:
+        config_path = os.path.expanduser('~/.pjutils')
+        if not os.path.isfile(config_path):
+            import socket
+            author = author or getpass.getuser()
+            email = email or '%s@%s' % (author, socket.gethostname())
+        else:
+            config = ConfigParser.RawConfigParser(allow_no_value=True)
+            config.readfp(open(os.path.expanduser('~/.pjutils')))
+            author = config.get('defaults', 'author')
+            email = config.get('defaults', 'email')
+
+    create_app(args.name, args.description, author, email)
