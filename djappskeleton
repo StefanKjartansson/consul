@@ -25,6 +25,9 @@ class color:
 st = Template('''#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
+import sys
+
 try:
     from setuptools import setup, find_packages, Command
 except ImportError:
@@ -60,7 +63,8 @@ setup(
     version = "0.1",
     packages = find_packages(exclude=['test_project']),
     install_requires = [
-        'django>=1.3',
+        {% for p in pkgs %}'{{p}}',
+        {% endfor %}
     ],
     package_data = {
     },
@@ -94,8 +98,7 @@ env/
 .coverage
 '''
 
-def create_app(name, description, author, email, init_git=False):
-
+def create_app(name, description, author, email, reqs=None, init_git=False):
 
     if os.path.exists(name):
         print(color.FAIL + ('Project path %s exists' % name) + color.EC)
@@ -106,9 +109,6 @@ def create_app(name, description, author, email, init_git=False):
 
     org_path = os.path.realpath(name)
 
-    with open('%s/setup.py' % name, 'w') as f:
-        f.write(st.render(name=name, description=description,
-            email=email, author=author))
     with open('%s/README.rst' % name, 'w') as f:
         f.write('')
 
@@ -119,8 +119,11 @@ def create_app(name, description, author, email, init_git=False):
     os.chdir(name)
     print(color.OKGREEN + ('Installing pip and requirements') + color.EC)
 
+    reqs = reqs or []
+    reqs.append('django')
+
     for x in [
-            'pip install -E %s %s' % (venv, 'django'),
+            'pip install -E %s %s' % (venv, ' '.join(set(reqs))),
             '%s/bin/django-admin.py startproject test_project' % (venv)]:
 
         print(color.WARNING + ('Executing "%s"' % x) + color.EC)
@@ -151,9 +154,10 @@ def create_app(name, description, author, email, init_git=False):
             print(color.FAIL + e + color.EC)
             sys.exit(1)
 
+    os.chdir(org_path)
+
     if init_git:
 
-        os.chdir(org_path)
         print(color.WARNING + ('Initializing git') + color.EC)
 
         c = subprocess.Popen(shlex.split('git init'),
@@ -166,6 +170,16 @@ def create_app(name, description, author, email, init_git=False):
 
         with open('.gitignore' , 'w') as f:
             f.write(git_ignore)
+
+    c = subprocess.Popen('source %s/bin/activate && pip freeze' % venv,
+        stdout=subprocess.PIPE,
+        shell=True)
+    o, e = c.communicate()
+    
+    with open('setup.py', 'w') as f:
+        f.write(st.render(name=name, description=description,
+            email=email, author=author, pkgs=[i.strip() 
+                for i in o.split('\n') if i.strip()]))
 
     print(color.OKGREEN + ('Finished') + color.EC)
 
@@ -184,6 +198,8 @@ if __name__ == '__main__':
         help='Email', default=None, required=False)
     parser.add_argument('--git', help='Initialize a git repo',
         default=False, action='store_true', required=False)
+    parser.add_argument('--nose', help='Configure nose',
+        default=False, action='store_true', required=False)
 
     args = parser.parse_args()
     author, email = args.author, args.email
@@ -201,4 +217,5 @@ if __name__ == '__main__':
             email = config.get('defaults', 'email')
 
     create_app(args.name, args.description, author, email,
+        reqs=['django-nose', 'coverage'] if args.nose else None,
         init_git=args.git)
