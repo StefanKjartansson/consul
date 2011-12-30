@@ -191,26 +191,27 @@ class RunTests(Command):
 
 
 setup(
-    name = "{{name}}",
-    version = "0.1",
-    packages = find_packages(exclude=['test_project']),
-    install_requires = [
-        {% for p in pkgs %}'{{p}}',
-        {% endfor %}
-    ],
-    package_data = find_package_data(),
-    cmdclass = {"test": RunTests},
     author="{{author}}",
     author_email="{{email}}",
-    description="{{description}}",
-    long_description=read('README.rst'),
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 2 - Pre-Alpha",
+        "Framework :: Django",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
     ],
+    cmdclass = {"test": RunTests},
+    description="{{description}}",
+    install_requires = [
+        {% for p in pkgs %}'{{p}}',
+        {% endfor %}
+    ],
+    long_description=read('README.rst'),
+    name = "{{name}}",
+    package_data = find_package_data(),
+    packages = find_packages(exclude=['test_project']),
+    version = "0.1",
     zip_safe=False,
 )
 ''')
@@ -231,7 +232,8 @@ env/
 test.db
 '''
 
-def create_app(name, description, author, email, reqs=None, init_git=False):
+def create_app(name, description, author, email, 
+        app_name=None, reqs=None, init_git=False): 
 
     if os.path.exists(name):
         print(color.FAIL + ('Project path %s exists' % name) + color.EC)
@@ -274,8 +276,8 @@ def create_app(name, description, author, email, reqs=None, init_git=False):
     os.chdir('test_project')
 
     for x in [
-            '%s/bin/python manage.py startapp %s' % (venv, name),
-            'mv %s ../' % name]:
+            '%s/bin/python manage.py startapp %s' % (venv, (app_name or name)),
+            'mv %s ../' % (app_name or name)]:
 
         print(color.WARNING + ('Executing "%s"' % x) + color.EC)
 
@@ -310,12 +312,12 @@ def create_app(name, description, author, email, reqs=None, init_git=False):
     o, e = c.communicate()
     
     with open('setup.py', 'w') as f:
-        f.write(st.render(name=name, description=description,
+        f.write(st.render(name=(app_name or name), description=description,
             email=email, author=author, pkgs=[i.strip() 
                 for i in o.split('\n') if i.strip()]))
 
     with open('test_project/test_settings.py', 'w') as f:
-         f.write(test_settings.render(name=name, 
+         f.write(test_settings.render(name=(app_name or name), 
             use_nose=('django-nose' in reqs)))
 
     print(color.OKGREEN + ('Finished') + color.EC)
@@ -324,11 +326,13 @@ def create_app(name, description, author, email, reqs=None, init_git=False):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
-        description='Creates a python application bundle.')
+        description='Creates a setuptools installable django application.')
     parser.add_argument('name', metavar='name', type=str,
         help='Name')
     parser.add_argument('--description', metavar='description', type=str,
         help='Description', default='', required=False)
+    parser.add_argument('--app', metavar='app', type=str,
+        help='Application name', default=None, required=False)
     parser.add_argument('--author', metavar='author', type=str,
         help='Author', default=None, required=False)
     parser.add_argument('--email', metavar='email', type=str,
@@ -355,4 +359,4 @@ if __name__ == '__main__':
 
     create_app(args.name, args.description, author, email,
         reqs=['django-nose', 'coverage'] if args.nose else None,
-        init_git=args.git)
+        init_git=args.git, app_name=args.app)
