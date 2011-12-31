@@ -1,18 +1,18 @@
-### Python & Django related utilities
+## Python & Django related utilities
 
-#### Overview
+### Overview
 
 Just a few simple scripts to make my life easier.
 
-#### Installation
+### Installation
 
 	sudo easy_install jinja2 virtualenv pip
 	git clone https://StefanKjartansson@github.com/StefanKjartansson/BinUtils.git
 	symlink the utils you want to your bin folder
 
-#### Utils
+### Utils
 
-##### djappskeleton
+#### djappskeleton
 
 Creates a auto-configured self-contained setuptools installable Django application:
 
@@ -23,15 +23,19 @@ Creates a auto-configured self-contained setuptools installable Django applicati
 	* Adds find_package_data, easier packaging of templates, fixtures & static content.
 	* Adds setup.py Django test runner command, python setup.py test runs the application's unittests via the test project.
 	* Auto-populates the install_requires with django (nose and coverage if specified).
-5. If --git flag was present, initialises a git repo with a default .gitignore file 
 
-###### TODO:
+##### Flags:
+
+* git: Initialises a git repo with a auto-configured gitignore file.
+* nose: Adds a nose test runner
+* jenkins: Adds a support for generating xml files from nose
+
+
+##### TODO:
 
 * Mercurial
 * --tox option: Auto-configure tox
-* --jenkins option: Auto-configure the xml plugins.
- 
 
-##### appskeleton
+#### appskeleton
 
 Does the same as djappskeleton, except no django, no testing. 
