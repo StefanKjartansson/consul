@@ -43,12 +43,14 @@ INSTALLED_APPS += ('django_nose',)
 
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 NOSE_ARGS = ['{{name}}',
-    '--failed',
-    '--stop',
-    '--with-coverage',
     '--cover-erase',
     '--cover-package={{name}}',
     '--cover-tests',
+    '--failed',
+    '--stop',
+    {% if jenkins %}'--with-xcoverage',
+    '--with-xunit',
+    {% else %}'--with-coverage',{% endif %}
 ]
 {% endif %}
 ''')
@@ -217,7 +219,7 @@ setup(
 ''')
 
 
-git_ignore = '''*.py[oc]
+git_ignore = Template('''*.py[oc]
 *.swp
 *.log
 *.db
@@ -230,10 +232,14 @@ env/
 .noseids
 .coverage
 test.db
-'''
+{% if jenkins %}test_project/coverage.xml
+test_project/nosetests.xml{% endif %}
+''')
+
 
 def create_app(name, description, author, email, 
-        app_name=None, reqs=None, init_git=False): 
+        app_name=None, reqs=None, init_git=False,
+        jenkins=False):
 
     if os.path.exists(name):
         print(color.FAIL + ('Project path %s exists' % name) + color.EC)
@@ -304,7 +310,7 @@ def create_app(name, description, author, email,
             sys.exit(1)
 
         with open('.gitignore' , 'w') as f:
-            f.write(git_ignore)
+            f.write(git_ignore.render(jenkins=jenkins))
 
     c = subprocess.Popen('source %s/bin/activate && pip freeze' % venv,
         stdout=subprocess.PIPE,
@@ -318,7 +324,7 @@ def create_app(name, description, author, email,
 
     with open('test_project/test_settings.py', 'w') as f:
          f.write(test_settings.render(name=(app_name or name), 
-            use_nose=('django-nose' in reqs)))
+            use_nose=('django-nose' in reqs), jenkins=jenkins))
 
     print(color.OKGREEN + ('Finished') + color.EC)
 
@@ -327,6 +333,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description='Creates a setuptools installable django application.')
+
     parser.add_argument('name', metavar='name', type=str,
         help='Name')
     parser.add_argument('--description', metavar='description', type=str,
@@ -337,9 +344,12 @@ if __name__ == '__main__':
         help='Author', default=None, required=False)
     parser.add_argument('--email', metavar='email', type=str,
         help='Email', default=None, required=False)
+
     parser.add_argument('--git', help='Initialize a git repo',
         default=False, action='store_true', required=False)
     parser.add_argument('--nose', help='Configure nose',
+        default=False, action='store_true', required=False)
+    parser.add_argument('--jenkins', help='Configure jenkins',
         default=False, action='store_true', required=False)
 
     args = parser.parse_args()
@@ -357,6 +367,11 @@ if __name__ == '__main__':
             author = config.get('defaults', 'author')
             email = config.get('defaults', 'email')
 
+    reqs = ['django-nose', 'coverage'] if args.nose else None
+
+    if args.jenkins and args.nose:
+        reqs.append('nosexcover')
+
     create_app(args.name, args.description, author, email,
-        reqs=['django-nose', 'coverage'] if args.nose else None,
-        init_git=args.git, app_name=args.app)
+        reqs=reqs, init_git=args.git, app_name=args.app, 
+        jenkins=args.jenkins)
