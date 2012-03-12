@@ -1,22 +1,18 @@
 #!/usr/bin/python
-# -*- coding: utf-8 
-
-import os
+# -*- coding: utf-8
 import argparse
+import os
 import sys
 
 
-class color:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    EC = '\033[0m'
+if __name__ == "__main__" and __package__ is None:
+    __package__ = "consul.bin.grayappend"
+
+
+from base import color
 
 
 def create_module(p):
-
     p = p.strip('/')
     def cb(a, d, f):
         with open('%s/__init__.py' % d, 'w') as f:
@@ -25,14 +21,18 @@ def create_module(p):
         os.makedirs(p)
         os.path.walk(p.split('/')[0], cb, None)
     except:
-        print(color.FAIL + 'Error' + color.EC)
+        color.red('Error')
         sys.exit(1)
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Creates a module.')
     parser.add_argument('path', metavar='P', type=str,
         help='Intended module path')
     args = parser.parse_args()
-    print(color.OKBLUE + 'Creating module' + color.EC)
+    color.blue('Creating module')
     create_module(args.path)
+
+
+if __name__ == '__main__':
+    main()
