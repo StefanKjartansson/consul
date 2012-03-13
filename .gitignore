@@ -7,6 +7,7 @@
 build/
 dist/
 env/
+tnv/
 .DS_Store
 .noseids
 .coverage
