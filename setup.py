@@ -33,5 +33,6 @@ setup(
             'grayappend = consul.bin.grayappend:main',
             'makemod = consul.bin.makemodule:main',
         ],
-    }
+    },
+    zip_safe=False,
 )
