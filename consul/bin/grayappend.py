@@ -1,5 +1,8 @@
+#!/usr/bin/env python
 # -*- coding: utf-8
-import StringIO
+
+from io import BytesIO
+
 import argparse
 import collections
 import glob
@@ -14,7 +17,7 @@ import textwrap
 if __name__ == "__main__" and __package__ is None:
     __package__ = "consul.bin.grayappend"
 
-from base import color, command
+from .base import color, command
 
 
 IMAGE_FORMATS = (
@@ -29,20 +32,19 @@ Picture = collections.namedtuple('Picture',
 
 
 def random_name():
-    return ''.join((random.choice(string.lowercase)
-        for i in xrange(5)))
+    return ''.join((random.choice(string.ascii_lowercase)
+        for i in range(5)))
 
 
 #http://code.google.com/p/bfg-pages/source/browse/trunk/pages/getimageinfo.py
 def get_image_info(data):
-    data = str(data)
     size = len(data)
     height = -1
     width = -1
     content_type = ''
 
     # handle GIFs
-    if (size >= 10) and data[:6] in ('GIF87a', 'GIF89a'):
+    if (size >= 10) and data[:6] in (b'GIF87a', b'GIF89a'):
         # Check to see if content_type is correct
         content_type = 'gif'
         w, h = struct.unpack("<HH", data[6:10])
@@ -52,15 +54,15 @@ def get_image_info(data):
     # See PNG 2. Edition spec (http://www.w3.org/TR/PNG/)
     # Bytes 0-7 are below, 4-byte chunk length, then 'IHDR'
     # and finally the 4-byte width, height
-    elif ((size >= 24) and data.startswith('\211PNG\r\n\032\n')
-          and (data[12:16] == 'IHDR')):
+    elif ((size >= 24) and data.startswith(b'\211PNG\r\n\032\n')
+          and (data[12:16] == b'IHDR')):
         content_type = 'png'
         w, h = struct.unpack(">LL", data[16:24])
         width = int(w)
         height = int(h)
 
     # Maybe this is for an older PNG version.
-    elif (size >= 16) and data.startswith('\211PNG\r\n\032\n'):
+    elif (size >= 16) and data.startswith(b'\211PNG\r\n\032\n'):
         # Check to see if we have the right content type
         content_type = 'png'
         w, h = struct.unpack(">LL", data[8:16])
@@ -68,21 +70,23 @@ def get_image_info(data):
         height = int(h)
 
     # handle JPEGs
-    elif (size >= 2) and data.startswith('\377\330'):
+    elif (size >= 2) and data.startswith(b'\377\330'):
         content_type = 'jpg'
-        jpeg = StringIO.StringIO(data)
+        jpeg = BytesIO(data)
         jpeg.read(2)
         b = jpeg.read(1)
         try:
             while (b and ord(b) != 0xDA):
-                while (ord(b) != 0xFF): b = jpeg.read(1)
-                while (ord(b) == 0xFF): b = jpeg.read(1)
+                while (ord(b) != 0xFF):
+                    b = jpeg.read(1)
+                while (ord(b) == 0xFF):
+                    b = jpeg.read(1)
                 if (ord(b) >= 0xC0 and ord(b) <= 0xC3):
                     jpeg.read(3)
                     h, w = struct.unpack(">HH", jpeg.read(4))
                     break
                 else:
-                    jpeg.read(int(struct.unpack(">H", jpeg.read(2))[0])-2)
+                    jpeg.read(int(struct.unpack(">H", jpeg.read(2))[0]) - 2)
                 b = jpeg.read(1)
             width = int(w)
             height = int(h)
@@ -127,7 +131,7 @@ def main():
         if args.verbose:
             color.green('Processing %s' % pic)
 
-        t, x, y = get_image_info(open(pic).read())
+        t, x, y = get_image_info(open(pic, 'rb').read())
 
         lst.append(Picture(pic, t, x, y))
 
@@ -149,13 +153,15 @@ def main():
         .%(name)s { float: left; width: %(x)dpx; height: %(y)dpx;
             text-indent: -9999px; background-position: 0 0;
             background-repeat: no-repeat;}
-        .%(name)s.disabled { background-position: 0 -%(y)dpx; opacity: 0.%(opacity)d;}
+        .%(name)s.disabled { background-position: 0 -%(y)dpx;
+        opacity: 0.%(opacity)d;}
         """) % {'name': n,
                 'x': x,
                 'y': y,
                 'opacity': args.opacity}
 
-        t = ".%(name)s.%(sname)s { background-image: url('%(spath)s/rs_%(pname)s');}\n"
+        t = ".%(name)s.%(sname)s {" \
+            "background-image: url('%(spath)s/rs_%(pname)s');}\n"
         for p in grp:
             css += t % {
                 'name': n,
