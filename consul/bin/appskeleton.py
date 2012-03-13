@@ -1,19 +1,25 @@
+#!/usr/bin/env python
 # -*- coding: utf-8
+import sys
 
-import ConfigParser
+if sys.version_info >= (3, 0):
+    import configparser
+else:
+    import ConfigParser as configparser     # noqa
+
 import argparse
 import getpass
 import os
 import tarfile
 import requests
 
-from cStringIO import StringIO
+from io import BytesIO, TextIOWrapper
+
 from jinja2 import Template
 
 
 if __name__ == "__main__" and __package__ is None:
     __package__ = "consul.bin.appskeleton"
-
 
 from .base import color, AttributeDict
 
@@ -24,7 +30,7 @@ def create_package(context):
     name = context.name
 
     #Download tarball from github
-    t = tarfile.open(fileobj=StringIO(requests.get(context.skeleton).content),
+    t = tarfile.open(fileobj=BytesIO(requests.get(context.skeleton).content),
         mode='r:gz')
 
     #List all non root folders from the tarball and create
@@ -42,14 +48,14 @@ def create_package(context):
     #Extract files in the tarball, create jinja templates from their
     #contents and render with the context
     for key, value in (('/'.join(i.name.split('/')[1:]),
-            t.extractfile(i.name).read())
+            t.extractfile(i.name))
                 for i in t.getmembers() if i.isfile()):
 
         if context.ignore_hidden and key.startswith('.'):
             continue
 
         with open('%s/%s' % (context.name, key), 'w') as f:
-            f.write(Template(value).render(**context))
+            f.write(Template(TextIOWrapper(value).read()).render(**context))
 
     color.green('finished')
 
@@ -88,7 +94,7 @@ def main():
             author_name = author_name or getpass.getuser()
             email = email or '%s@%s' % (author_name, socket.gethostname())
         else:
-            config = ConfigParser.RawConfigParser(allow_no_value=True)
+            config = configparser.RawConfigParser(allow_no_value=True)
             config.readfp(open(os.path.expanduser('~/.pjutils')))
             author_name = config.get('defaults', 'author')
             email = config.get('defaults', 'email')
