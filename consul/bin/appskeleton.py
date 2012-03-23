@@ -2,7 +2,10 @@
 # -*- coding: utf-8
 import sys
 
+py3K = False
+
 if sys.version_info >= (3, 0):
+    py3K = True
     import configparser
 else:
     import ConfigParser as configparser     # noqa
@@ -22,6 +25,12 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "consul.bin.appskeleton"
 
 from .base import color, AttributeDict
+
+
+def get_template(value):
+    if py3K:
+        return Template(TextIOWrapper(value).read())
+    return Template(str(value))
 
 
 def create_package(context):
@@ -55,7 +64,7 @@ def create_package(context):
             continue
 
         with open('%s/%s' % (context.name, key), 'w') as f:
-            f.write(Template(TextIOWrapper(value).read()).render(**context))
+            f.write(get_template(value).render(**context))
 
     color.green('finished')
 
