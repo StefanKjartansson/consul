@@ -30,13 +30,14 @@ from .base import color, AttributeDict
 def get_template(value):
     if py3K:
         return Template(TextIOWrapper(value).read())
-    return Template(str(value))
+    return Template(str(value.read()))
 
 
 def create_package(context):
 
     color.green('Creating module')
     name = context.name
+    module_name = context.module_name
 
     #Download tarball from github
     t = tarfile.open(fileobj=BytesIO(requests.get(context.skeleton).content),
@@ -50,9 +51,9 @@ def create_package(context):
         os.makedirs('%s/%s' % (name, p))
 
     #Create the package itself
-    os.makedirs('%s/%s' % (name, name))
-    with open('%s/%s/__init__.py' % (name, name), 'w') as f:
-        f.write('')
+    os.makedirs('%s/%s' % (name, module_name))
+    with open('%s/%s/__init__.py' % (name, module_name), 'w') as f:
+        f.write('#!/usr/bin/env python\n# -*- coding: utf-8\n')
 
     #Extract files in the tarball, create jinja templates from their
     #contents and render with the context
@@ -79,6 +80,8 @@ def main():
         help='Name')
     parser.add_argument('--description', metavar='description', type=str,
         help='Description', default='', required=False)
+    parser.add_argument('--module', metavar='module', type=str,
+        help='Module name', default=None, required=False)
     parser.add_argument('--author', metavar='author', type=str,
         help='Author', default=None, required=False)
     parser.add_argument('--email', metavar='email', type=str,
@@ -112,6 +115,7 @@ def main():
         author=AttributeDict(name=author_name, email=email),
         skeleton='%starball/%s/' % (args.skeleton, args.branch),
         name=args.name,
+        module_name=args.module or args.name,
         description=args.description,
         ignore_hidden=(not args.hidden))
 
