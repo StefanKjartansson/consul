@@ -1,22 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8
-import sys
-
-py3K = False
-
-if sys.version_info >= (3, 0):
-    py3K = True
-    import configparser
-else:
-    import ConfigParser as configparser     # noqa
 
 import argparse
 import getpass
 import os
 import tarfile
-import requests
+import datetime
+from io import TextIOWrapper
 
-from io import BytesIO, TextIOWrapper
+import six
+from six.moves import configparser
+import requests
 
 from jinja2 import Template
 
@@ -24,11 +18,12 @@ from jinja2 import Template
 if __name__ == "__main__" and __package__ is None:
     __package__ = "consul.bin.appskeleton"
 
+
 from .base import color, AttributeDict
 
 
 def get_template(value):
-    if py3K:
+    if six.PY3:
         return Template(TextIOWrapper(value).read())
     return Template(str(value.read()))
 
@@ -40,7 +35,7 @@ def create_package(context):
     module_name = context.module_name
 
     #Download tarball from github
-    t = tarfile.open(fileobj=BytesIO(requests.get(context.skeleton).content),
+    t = tarfile.open(fileobj=six.BytesIO(requests.get(context.skeleton).content),
         mode='r:gz')
 
     #List all non root folders from the tarball and create
@@ -117,6 +112,7 @@ def main():
         name=args.name,
         module_name=args.module or args.name,
         description=args.description,
+        year=datetime.date.today().year,
         ignore_hidden=(not args.hidden))
 
     create_package(context)

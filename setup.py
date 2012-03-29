@@ -15,6 +15,7 @@ setup(
     install_requires = [
         'jinja2',
         'requests',
+        'six',
     ],
     author="Stefan Kjartansson",
     author_email="esteban.supreme@gmail.com",
