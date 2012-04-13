@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import sys
+
 try:
     from setuptools import setup, find_packages
 except ImportError:
@@ -8,15 +10,20 @@ except ImportError:
 
 NAME = 'consul'
 
+install_requires = [
+    'jinja2',
+    'requests',
+    'six',
+]
+
+if sys.version_info < (2, 7):
+    install_requires.append('argparse')
+
 setup(
     name = NAME,
     version = "0.1",
     packages = find_packages(),
-    install_requires = [
-        'jinja2',
-        'requests',
-        'six',
-    ],
+    install_requires = install_requires,
     author="Stefan Kjartansson",
     author_email="esteban.supreme@gmail.com",
     description="Console Scripts",
