@@ -16,7 +16,7 @@ def create_module(p):
         os.makedirs(p)
         for root, _, _ in os.walk(p.split('/')[0]):
             with open('%s/__init__.py' % root, 'w') as f:
-                f.write('#!/usr/bin/env python\n# -*- coding: utf-8\n')
+                f.write('#!/usr/bin/env python\n# -*- coding: utf-8 -*-\n')
     except:
         color.red('Error')
         sys.exit(1)
